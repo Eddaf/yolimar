@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moda DTF Pro - Catálogo & Diseño Personalizado</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/history@5/umd/history.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router@6.3.0/umd/react-router.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #0d9488; border-radius: 4px; }
+        .animate-slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .polera-blend { mix-blend-mode: multiply; }
+    </style>
+</head>
+<body class="bg-white text-gray-900 font-sans antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, createContext, useContext } = React;
+        const { HashRouter, Routes, Route, Link, useNavigate } = ReactRouterDOM;
+
+        // =================================================================
+        // 🔧 CONFIGURACIÓN PRINCIPAL DE PRECIOS
+        // =================================================================
+        // ESTRUCTURA PREPARADA PARA BASE DE DATOS
+        // Tablas sugeridas: product_types, price_groups, custom_config
+        // 
+        // VECTOR LOCAL ACTUAL: CONFIG_DATA
+        // FUTURO: Reemplazar por llamada API: GET /api/config/pricing
+        
+        const CONFIG_DATA = {
+            // === PRODUCTOS DEL CATÁLOGO ===
+            types: {
+                polera: { 
+                    id: 'polera', name: 'Polera', emoji: '👕', 
+                    hasSizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], 
+                    pricesBySizeGroup: { 
+                        'S': { id: 'pg_polera_s', base: 55, label: 'Talla S' }, 
+                        'ML': { id: 'pg_polera_ml', base: 55, label: 'Tallas M, L' }, 
+                        'XL': { id: 'pg_polera_xl', base: 60, label: 'Tallas XL, XXL' } 
+                    }, 
+                    discount: { enabled: true, percentage: 10, minQuantity: 3, description: '10% OFF desde 3 uni.' },
+                    description: 'Poleras básicas de algodón'
+                },
+                saco: { 
+                    id: 'saco', name: 'Saco', emoji: '🧥', 
+                    hasSizes: ['S', 'M', 'L', 'XL', 'XXL'], 
+                    pricesBySizeGroup: { 
+                        'S': { id: 'pg_saco_s', base: 189, label: 'Talla S' }, 
+                        'ML': { id: 'pg_saco_ml', base: 189, label: 'Tallas M, L' }, 
+                        'XL': { id: 'pg_saco_xl', base: 199, label: 'Tallas XL, XXL' } 
+                    }, 
+                    discount: { enabled: true, percentage: 10, minQuantity: 3, description: '10% OFF desde 3 uni.' },
+                    description: 'Abrigos y sakos formales'
+                },
+                blusa: { 
+                    id: 'blusa', name: 'Blusa', emoji: '👚', 
+                    hasSizes: ['XS', 'S', 'M', 'L', 'XL'], 
+                    pricesBySizeGroup: { 
+                        'S': { id: 'pg_blusa_s', base: 77, label: 'Talla S' }, 
+                        'ML': { id: 'pg_blusa_ml', base: 77, label: 'Tallas M, L' }, 
+                        'XL': { id: 'pg_blusa_xl', base: 82, label: 'Talla XL' } 
+                    }, 
+                    discount: { enabled: true, percentage: 10, minQuantity: 3, description: '10% OFF desde 3 uni.' },
+                    description: 'Blusas y tops elegantes'
+                },
+                solera: { 
+                    id: 'solera', name: 'Solera', emoji: '👘', 
+                    hasSizes: ['S', 'M', 'L', 'XL'], 
+                    pricesBySizeGroup: { 
+                        'S': { id: 'pg_solera_s', base: 93, label: 'Talla S' }, 
+                        'ML': { id: 'pg_solera_ml', base: 93, label: 'Tallas M, L' }, 
+                        'XL': { id: 'pg_solera_xl', base: 98, label: 'Talla XL' } 
+                    }, 
+                    discount: { enabled: true, percentage: 10, minQuantity: 3, description: '10% OFF desde 3 uni.' },
+                    description: 'Prendas tradicionales'
+                }
+            },
+            
+            // === PRODUCTOS PERSONALIZADOS (DISEÑADOR) ===
+            customConfig: {
+                id: 'custom', name: 'Polera Personalizada', emoji: '🎨',
+                basePrice: 60,
+                pricesBySizeGroup: { 
+                    'S': { id: 'pg_custom_s', base: 60, label: 'Talla S' }, 
+                    'ML': { id: 'pg_custom_ml', base: 60, label: 'Tallas M, L' }, 
+                    'XL': { id: 'pg_custom_xl', base: 65, label: 'Tallas XL, XXL' } 
+                },
+                discount: { enabled: true, percentage: 5, minQuantity: 12, description: '5% OFF desde 12 uni.' },
+                description: 'Poleras personalizadas del diseñador'
+            }
+        };
+
+        // Mapeo de tallas a grupos de precio
+        const SIZE_GROUPS = { 'S': 'S', 'XS': 'S', 'M': 'ML', 'L': 'ML', 'XL': 'XL', 'XXL': 'XL' };
+
+        // Obtener precio base por tipo y talla
+        const getPriceByTypeAndSize = (type, size, isCustom = false) => {
+            if (isCustom) {
+                const config = CONFIG_DATA.customConfig;
+                const group = SIZE_GROUPS[size] || 'ML';
+                return config.pricesBySizeGroup[group]?.base || 60;
+            }
+            const config = CONFIG_DATA.types[type];
+            if (!config) return 55;
+            const group = SIZE_GROUPS[size] || 'ML';
+            return config.pricesBySizeGroup[group]?.base || 55;
+        };
+
+        // Calcular precio con descuento
+        const getPriceWithDiscount = (type, size, quantity, isCustom = false) => {
+            const basePrice = getPriceByTypeAndSize(type, size, isCustom);
+            const config = isCustom ? CONFIG_DATA.customConfig : CONFIG_DATA.types[type];
+            
+            if (!config || !config.discount.enabled) {
+                return { basePrice, discountedPrice: basePrice, discountPercentage: 0, hasDiscount: false, savings: 0 };
+            }
+            
+            if (quantity >= config.discount.minQuantity) {
+                const discountAmount = basePrice * (config.discount.percentage / 100);
+                return { 
+                    basePrice, 
+                    discountedPrice: basePrice - discountAmount, 
+                    discountPercentage: config.discount.percentage, 
+                    hasDiscount: true, 
+                    savings: discountAmount * quantity,
+                    minQuantity: config.discount.minQuantity
+                };
+            }
+            
+            return { basePrice, discountedPrice: basePrice, discountPercentage: 0, hasDiscount: false, savings: 0, minQuantity: config.discount.minQuantity };
+        };
+
+        // === USUARIOS ADMINISTRADORES ===
+        const ADMIN_USERS = [
+            { email: 'eddar@gmail.com', password: '1234', name: 'Eduardo', role: 'admin' },
+            { email: 'admin@modadtf.pe', password: 'admin2024', name: 'Administrador', role: 'admin' },
+            { email: 'ventas@modadtf.pe', password: 'ventas2024', name: 'Ventas', role: 'editor' }
+        ];
+
+        // Iconos SVG
+        const Icons = {
+            X: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            ShoppingBag: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+            Shirt: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>,
+            Trash2: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+            Phone: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+            Settings: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Lock: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            User: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            Pencil: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>,
+            Check: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><polyline points="20 6 9 17 4 12"/></svg>,
+            AlertTriangle: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+            Info: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+        };
+
+        // Imágenes de productos
+        const IMAGES_DB = {
+            Algodon: { blanco: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23f3f4f6' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%239ca3af' font-size='14'%3EAlgod%C3%B3n Blanco%3C/text%3E%3C/svg%3E", negro: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23181818' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EAlgod%C3%B3n Negro%3C/text%3E%3C/svg%3E", rojo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23dc2626' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EAlgod%C3%B3n Rojo%3C/text%3E%3C/svg%3E", azul: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%232563eb' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EAlgod%C3%B3n Azul%3C/text%3E%3C/svg%3E", verde: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%2316a34a' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EAlgod%C3%B3n Verde%3C/text%3E%3C/svg%3E", gris: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%239ca3af' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EAlgod%C3%B3n Plomo%3C/text%3E%3C/svg%3E" },
+            Poliester: { blanco: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23f3f4f6' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%239ca3af' font-size='14'%3EPoli%C3%A9ster Blanco%3C/text%3E%3C/svg%3E", negro: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23181818' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EPoli%C3%A9ster Negro%3C/text%3E%3C/svg%3E", rojo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23dc2626' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EPoli%C3%A9ster Rojo%3C/text%3E%3C/svg%3E", azul: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%232563eb' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EPoli%C3%A9ster Azul%3C/text%3E%3C/svg%3E", verde: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%2316a34a' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EPoli%C3%A9ster Verde%3C/text%3E%3C/svg%3E", gris: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%239ca3af' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3EPoli%C3%A9ster Plomo%3C/text%3E%3C/svg%3E" },
+            V: { blanco: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23f3f4f6' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%239ca3af' font-size='14'%3ECuello V Blanco%3C/text%3E%3C/svg%3E", negro: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23181818' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3ECuello V Negro%3C/text%3E%3C/svg%3E", rojo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%23dc2626' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3ECuello V Rojo%3C/text%3E%3C/svg%3E", azul: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%232563eb' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3ECuello V Azul%3C/text%3E%3C/svg%3E", verde: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%2316a34a' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3ECuello V Verde%3C/text%3E%3C/svg%3E", gris: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect fill='%239ca3af' width='300' height='400'/%3E%3Ctext x='150' y='200' text-anchor='middle' fill='%23ffffff' font-size='14'%3ECuello V Plomo%3C/text%3E%3C/svg%3E" }
+        };
+
+        const DESIGNS_DB = [
+            { id: 1, name: 'EST_IMG1', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E1%3C/text%3E%3C/svg%3E" },
+            { id: 2, name: 'EST_IMG2', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E2%3C/text%3E%3C/svg%3E" },
+            { id: 3, name: 'EST_IMG3', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E3%3C/text%3E%3C/svg%3E" },
+            { id: 4, name: 'EST_IMG4', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E4%3C/text%3E%3C/svg%3E" },
+            { id: 5, name: 'EST_IMG5', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E5%3C/text%3E%3C/svg%3E" },
+            { id: 6, name: 'EST_IMG6', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E6%3C/text%3E%3C/svg%3E" },
+            { id: 7, name: 'EST_IMG7', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E7%3C/text%3E%3C/svg%3E" },
+            { id: 8, name: 'EST_IMG8', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E8%3C/text%3E%3C/svg%3E" },
+            { id: 9, name: 'EST_IMG9', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='24' font-weight='bold'%3E9%3C/text%3E%3C/svg%3E" },
+            { id: 10, name: 'EST_IMG10', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='20' font-weight='bold'%3E10%3C/text%3E%3C/svg%3E" },
+            { id: 11, name: 'EST_IMG11', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='20' font-weight='bold'%3E11%3C/text%3E%3C/svg%3E" },
+            { id: 12, name: 'EST_IMG12', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='20' font-weight='bold'%3E12%3C/text%3E%3C/svg%3E" },
+            { id: 13, name: 'EST_IMG13', img: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%2314b8a6' width='100' height='100' rx='10'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='white' font-size='20' font-weight='bold'%3E13%3C/text%3E%3C/svg%3E" }
+        ];
+
+        const CATALOG_PRODUCTS = [
+            { id: 1, type: 'blusa', name: 'Blusa Elegante Rosa', code: 'BLU-001', description: 'Blusa de seda con corte elegante', material: 'Seda 100%', colors: ['rosa', 'blanco', 'negro'], sizes: ['XS', 'S', 'M', 'L', 'XL'], emoji: '👚', tag: 'TOP VENTA', badge: 'TOP VENTA' },
+            { id: 2, type: 'blusa', name: 'Blusa Floral Bordó', code: 'BLU-002', description: 'Hermosa blusa con estampado floral', material: 'Algodón Premium', colors: ['bordo', 'rosa'], sizes: ['S', 'M', 'L'], emoji: '👚', tag: 'NUEVO', badge: 'NUEVO' },
+            { id: 3, type: 'blusa', name: 'Blusa Clásica Blanca', code: 'BLU-003', description: 'Blusa clásica de algodón orgánico', material: 'Algodón Orgánico', colors: ['blanco'], sizes: ['XS', 'S', 'M', 'L', 'XL'], emoji: '👚', tag: 'CLÁSICO', badge: null },
+            { id: 4, type: 'blusa', name: 'Blusa Estampada Azul', code: 'BLU-004', description: 'Blusa con estampado geométrico', material: 'Poliéster', colors: ['azul', 'blanco'], sizes: ['S', 'M', 'L'], emoji: '👚', tag: 'ELEGANTE', badge: null },
+            { id: 5, type: 'saco', name: 'Saco Formal Gris', code: 'SAC-001', description: 'Saco de lana italiana para eventos', material: 'Lana Italiana', colors: ['gris', 'negro', 'azul'], sizes: ['S', 'M', 'L', 'XL'], emoji: '🧥', tag: 'PREMIUM', badge: 'PREMIUM' },
+            { id: 6, type: 'saco', name: 'Saco Casual Beige', code: 'SAC-002', description: 'Saco moderno para ocasiones casuales', material: 'Algodón-Poliéster', colors: ['beige', 'marron'], sizes: ['M', 'L', 'XL'], emoji: '🧥', tag: 'ELEGANTE', badge: 'ELEGANTE' },
+            { id: 7, type: 'saco', name: 'Saco Invernal Negro', code: 'SAC-003', description: 'Saco abrigador para el invierno', material: 'Lana-Acrílico', colors: ['negro', 'gris'], sizes: ['S', 'M', 'L', 'XL', 'XXL'], emoji: '🧥', tag: 'INVIERNO', badge: null },
+            { id: 8, type: 'polera', name: 'Polera Estampada Flor', code: 'POL-001', description: 'Polera cómoda con estampado floral', material: 'Algodón 100%', colors: ['blanco', 'rosa', 'amarillo'], sizes: ['S', 'M', 'L', 'XL'], emoji: '👕', tag: 'TOP VENTA', badge: 'TOP VENTA' },
+            { id: 9, type: 'polera', name: 'Polera Diseñó Moderno', code: 'POL-002', description: 'Polera con diseño moderno', material: 'Algodón Premium', colors: ['negro', 'blanco', 'azul'], sizes: ['XS', 'S', 'M', 'L'], emoji: '👕', tag: 'MODERNO', badge: 'NUEVO' },
+            { id: 10, type: 'polera', name: 'Polera Manga Larga', code: 'POL-003', description: 'Polera manga larga para climas frescos', material: 'Algodón Orgánico', colors: ['verde', 'azul', 'gris'], sizes: ['S', 'M', 'L', 'XL'], emoji: '👕', tag: 'TEMPORADA', badge: null },
+            { id: 11, type: 'polera', name: 'Polera Basic Negra', code: 'POL-004', description: 'Polera básica negra esencial', material: 'Algodón 100%', colors: ['negro'], sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], emoji: '👕', tag: 'BÁSICO', badge: null },
+            { id: 12, type: 'solera', name: 'Solera Estampada', code: 'SOL-001', description: 'Solera tradicional con bordados', material: 'Algodón Artesanal', colors: ['multicolor', 'rojo', 'azul'], sizes: ['S', 'M', 'L'], emoji: '👘', tag: 'ARTESANAL', badge: 'PREMIUM' },
+            { id: 13, type: 'solera', name: 'Solera Elegante', code: 'SOL-002', description: 'Solera fina para ocasiones especiales', material: 'Seda-Algodón', colors: ['negro', 'rojo', 'dorado'], sizes: ['M', 'L', 'XL'], emoji: '👘', tag: 'ELEGANTE', badge: 'NUEVO' },
+            { id: 14, type: 'solera', name: 'Solera Casual', code: 'SOL-003', description: 'Solera cómoda para uso diario', material: 'Algodón-Poliéster', colors: ['azul', 'verde', 'marron'], sizes: ['S', 'M', 'L', 'XL'], emoji: '👘', tag: 'CASUAL', badge: null }
+        ];
+
+        const COLORS_AVAILABLE = [
+            { id: 'blanco', label: 'Blanco', hex: '#FFFFFF' },
+            { id: 'negro', label: 'Negro', hex: '#1a1a1a' },
+            { id: 'rojo', label: 'Rojo', hex: '#dc2626' },
+            { id: 'azul', label: 'Azul', hex: '#2563eb' },
+            { id: 'gris', label: 'Plomo', hex: '#b7b7b7' },
+            { id: 'verde', label: 'Verde', hex: '#00913f' },
+        ];
+
+        const COLOR_MAP = { 'negro': '#000000', 'blanco': '#FFFFFF', 'rosa': '#E91E63', 'rojo': '#F44336', 'azul': '#2196F3', 'verde': '#4CAF50', 'amarillo': '#FFEB3B', 'naranja': '#FF9800', 'morado': '#9C27B0', 'gris': '#9E9E9E', 'beige': '#D7CCC8', 'marron': '#795548', 'bordo': '#880E4F', 'dorado': '#FFD700', 'plata': '#C0C0C0', 'multicolor': 'linear-gradient(45deg, #F44336, #FFEB3B, #4CAF50, #2196F3)' };
+        const COLOR_NAMES = { 'negro': 'Negro', 'blanco': 'Blanco', 'rosa': 'Rosa', 'rojo': 'Rojo', 'azul': 'Azul', 'verde': 'Verde', 'amarillo': 'Amarillo', 'naranja': 'Naranja', 'morado': 'Morado', 'gris': 'Gris', 'beige': 'Beige', 'marron': 'Marrón', 'bordo': 'Bordó', 'dorado': 'Dorado', 'plata': 'Plata', 'multicolor': 'Multicolor' };
+
+        // Contextos
+        const AuthContext = createContext();
+        const AuthProvider = ({ children }) => {
+            const [user, setUser] = useState(null);
+            const [showLogin, setShowLogin] = useState(false);
+
+            useEffect(() => {
+                const savedUser = localStorage.getItem('modadtf_admin_user');
+                if (savedUser) {
+                    try { setUser(JSON.parse(savedUser)); } catch (e) { localStorage.removeItem('modadtf_admin_user'); }
+                }
+            }, []);
+
+            const login = (email, password) => {
+                const adminUser = ADMIN_USERS.find(u => u.email === email && u.password === password);
+                if (adminUser) {
+                    const userData = { email: adminUser.email, name: adminUser.name, role: adminUser.role };
+                    setUser(userData);
+                    localStorage.setItem('modadtf_admin_user', JSON.stringify(userData));
+                    setShowLogin(false);
+                    return { success: true, user: userData };
+                }
+                return { success: false, error: 'Credenciales incorrectas' };
+            };
+
+            const logout = () => {
+                setUser(null);
+                localStorage.removeItem('modadtf_admin_user');
+                window.location.href = '#/';
+            };
+
+            return <AuthContext.Provider value={{ user, login, logout, showLogin, setShowLogin }}>{children}</AuthContext.Provider>;
+        };
+        const useAuth = () => useContext(AuthContext);
+
+        const CartContext = createContext();
+        const CartProvider = ({ children }) => {
+            const [cart, setCart] = useState([]);
+            const [catalogCart, setCatalogCart] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+
+            useEffect(() => {
+                const savedCustom = localStorage.getItem('modadtf_cart_custom');
+                const savedCatalog = localStorage.getItem('modadtf_cart_catalog');
+                if (savedCustom) { try { setCart(JSON.parse(savedCustom)); } catch (e) {} }
+                if (savedCatalog) { try { setCatalogCart(JSON.parse(savedCatalog)); } catch (e) {} }
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('modadtf_cart_custom', JSON.stringify(cart));
+                localStorage.setItem('modadtf_cart_catalog', JSON.stringify(catalogCart));
+            }, [cart, catalogCart]);
+
+            const addToCart = (product) => {
+                setCart(prev => [...prev, { ...product, cartItemId: Date.now() }]);
+                setIsCartOpen(true);
+            };
+
+            const addToCatalogCart = (product, color, size, qty) => {
+                const existing = catalogCart.find(i => i.id === product.id && i.selectedColor === color && i.selectedSize === size);
+                if (existing) {
+                    setCatalogCart(prev => prev.map(i => (i.id === product.id && i.selectedColor === color && i.selectedSize === size) ? {...i, quantity: i.quantity + qty} : i));
+                } else {
+                    setCatalogCart(prev => [...prev, {...product, selectedColor: color, selectedSize: size, quantity: qty, cartItemId: Date.now()}]);
+                }
+                setIsCartOpen(true);
+            };
+
+            const removeFromCart = (id) => setCart(prev => prev.filter(i => i.cartItemId !== id));
+            const removeFromCatalogCart = (id) => setCatalogCart(prev => prev.filter(i => i.cartItemId !== id));
+            const updateCatalogQty = (id, delta) => {
+                setCatalogCart(prev => prev.map(i => {
+                    if (i.cartItemId === id) {
+                        const newQty = i.quantity + delta;
+                        return newQty <= 0 ? null : {...i, quantity: newQty};
+                    }
+                    return i;
+                }).filter(Boolean));
+            };
+            const updateCustomQty = (id, quantity) => {
+                setCart(prev => prev.map(i => i.cartItemId === id ? {...i, quantity: quantity} : i));
+            };
+
+            const customTotal = cart.reduce((acc, item) => {
+                if (item.isCustom) {
+                    const type = item.type || 'polera';
+                    const discountInfo = getPriceWithDiscount(type, item.details.size, item.quantity || 1, true);
+                    return acc + (discountInfo.discountedPrice * (item.quantity || 1));
+                }
+                return acc + (item.price || 0);
+            }, 0);
+
+            const catalogTotal = catalogCart.reduce((acc, item) => {
+                const type = item.type || 'polera';
+                const discountInfo = getPriceWithDiscount(type, item.selectedSize, item.quantity, false);
+                return acc + (discountInfo.discountedPrice * item.quantity);
+            }, 0);
+
+            const allCartItems = [...cart, ...catalogCart];
+            const totalItems = allCartItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+            return (
+                <CartContext.Provider value={{
+                    cart, addToCart, removeFromCart,
+                    catalogCart, addToCatalogCart, removeFromCatalogCart, updateCatalogQty, updateCustomQty,
+                    catalogTotal, customTotal, isCartOpen, setIsCartOpen, allCartItems, totalItems
+                }}>
+                    {children}
+                </CartContext.Provider>
+            );
+        };
+        const useCart = () => useContext(CartContext);
+
+        const ProductPreview = ({ type, color, design, containerClass, logoSize }) => {
+            const activeImg = (IMAGES_DB[type] && IMAGES_DB[type][color]) ? IMAGES_DB[type][color] : (IMAGES_DB[type] ? IMAGES_DB[type].blanco : null);
+            return (
+                <div className={"relative flex items-center justify-center overflow-hidden " + (containerClass || "")}>
+                    {activeImg ? (
+                        <img src={activeImg} className="w-full h-full object-contain polera-blend" alt="Producto" />
+                    ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                            <span className="text-4xl">👕</span>
+                        </div>
+                    )}
+                    {design && (
+                        <div className="absolute top-[35%] w-full flex justify-center pointer-events-none">
+                            <img src={design} className={(logoSize || "w-44 h-44") + " object-contain"} alt="Estampado" />
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const AdminLoginModal = () => {
+            const { showLogin, setShowLogin, login } = useAuth();
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => {
+                if (showLogin) { setEmail(''); setPassword(''); setError(''); }
+            }, [showLogin]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+                setTimeout(() => {
+                    const result = login(email, password);
+                    setLoading(false);
+                    if (!result.success) { setError(result.error); }
+                }, 300);
+            };
+
+            if (!showLogin) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-sm animate-slide-in">
+                        <div className="bg-gradient-to-r from-teal-600 to-teal-700 text-white p-6 rounded-t-2xl flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <Icons.Lock className="w-6 h-6" />
+                                <h3 className="text-xl font-bold">Acceso Administrador</h3>
+                            </div>
+                            <button onClick={() => setShowLogin(false)}><Icons.X className="w-6 h-6"/></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="correo@ejemplo.com" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="********" required />
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg text-xs text-gray-500">
+                                <strong>Usuarios:</strong> eddar@gmail.com / 1234
+                            </div>
+                        </form>
+                        <div className="p-6 border-t flex gap-3">
+                            <button type="button" onClick={() => setShowLogin(false)} className="flex-1 px-4 py-3 bg-gray-100 rounded-lg font-medium">Cancelar</button>
+                            <button onClick={handleSubmit} disabled={loading} className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700">{loading ? '...' : 'Ingresar'}</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminPanel = () => {
+            const { user, logout } = useAuth();
+            const navigate = useNavigate();
+            const [activeTab, setActiveTab] = useState('pricing');
+            const [editingType, setEditingType] = useState(null);
+            const [editingCustom, setEditingCustom] = useState(false);
+            const [priceForm, setPriceForm] = useState({ S: 0, ML: 0, XL: 0, discountEnabled: true, discountPercentage: 10, minQuantity: 3 });
+            const [customForm, setCustomForm] = useState({ S: 0, ML: 0, XL: 0, discountEnabled: true, discountPercentage: 5, minQuantity: 12 });
+            const [saving, setSaving] = useState(false);
+
+            if (!user) {
+                navigate('/');
+                return null;
+            }
+
+            const startEdit = (type) => {
+                const config = CONFIG_DATA.types[type];
+                setEditingType(type);
+                setPriceForm({
+                    S: config.pricesBySizeGroup.S.base,
+                    ML: config.pricesBySizeGroup.ML.base,
+                    XL: config.pricesBySizeGroup.XL.base,
+                    discountEnabled: config.discount.enabled,
+                    discountPercentage: config.discount.percentage,
+                    minQuantity: config.discount.minQuantity
+                });
+            };
+
+            const startEditCustom = () => {
+                const config = CONFIG_DATA.customConfig;
+                setEditingCustom(true);
+                setCustomForm({
+                    S: config.pricesBySizeGroup.S.base,
+                    ML: config.pricesBySizeGroup.ML.base,
+                    XL: config.pricesBySizeGroup.XL.base,
+                    discountEnabled: config.discount.enabled,
+                    discountPercentage: config.discount.percentage,
+                    minQuantity: config.discount.minQuantity
+                });
+            };
+
+            const savePrice = (type) => {
+                setSaving(true);
+                setTimeout(() => {
+                    CONFIG_DATA.types[type].pricesBySizeGroup.S.base = parseFloat(priceForm.S);
+                    CONFIG_DATA.types[type].pricesBySizeGroup.ML.base = parseFloat(priceForm.ML);
+                    CONFIG_DATA.types[type].pricesBySizeGroup.XL.base = parseFloat(priceForm.XL);
+                    CONFIG_DATA.types[type].discount.enabled = priceForm.discountEnabled;
+                    CONFIG_DATA.types[type].discount.percentage = parseFloat(priceForm.discountPercentage);
+                    CONFIG_DATA.types[type].discount.minQuantity = parseInt(priceForm.minQuantity);
+                    CONFIG_DATA.types[type].discount.description = `${priceForm.discountPercentage}% OFF desde ${priceForm.minQuantity} uni.`;
+                    setEditingType(null);
+                    setSaving(false);
+                }, 300);
+            };
+
+            const saveCustomPrice = () => {
+                setSaving(true);
+                setTimeout(() => {
+                    CONFIG_DATA.customConfig.pricesBySizeGroup.S.base = parseFloat(customForm.S);
+                    CONFIG_DATA.customConfig.pricesBySizeGroup.ML.base = parseFloat(customForm.ML);
+                    CONFIG_DATA.customConfig.pricesBySizeGroup.XL.base = parseFloat(customForm.XL);
+                    CONFIG_DATA.customConfig.discount.enabled = customForm.discountEnabled;
+                    CONFIG_DATA.customConfig.discount.percentage = parseFloat(customForm.discountPercentage);
+                    CONFIG_DATA.customConfig.discount.minQuantity = parseInt(customForm.minQuantity);
+                    CONFIG_DATA.customConfig.discount.description = `${customForm.discountPercentage}% OFF desde ${customForm.minQuantity} uni.`;
+                    setEditingCustom(false);
+                    setSaving(false);
+                }, 300);
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <div className="bg-gradient-to-r from-teal-600 to-teal-700 text-white p-4 shadow-lg">
+                        <div className="max-w-6xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => navigate('/')} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2">← Volver</button>
+                                <h1 className="text-2xl font-bold">Panel de Administración</h1>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm bg-white/20 px-3 py-1 rounded-full">👤 {user.name || user.email}</span>
+                                <button onClick={logout} className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-medium">Cerrar Sesión</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-6xl mx-auto p-6">
+                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div className="flex border-b">
+                                <button onClick={() => setActiveTab('pricing')} className={"flex-1 px-6 py-4 font-medium transition-colors " + (activeTab === 'pricing' ? 'bg-teal-50 text-teal-600 border-b-2 border-teal-600' : 'text-gray-600 hover:bg-gray-50')}>💰 Configuración de Precios</button>
+                                <button onClick={() => setActiveTab('users')} className={"flex-1 px-6 py-4 font-medium transition-colors " + (activeTab === 'users' ? 'bg-teal-50 text-teal-600 border-b-2 border-teal-600' : 'text-gray-600 hover:bg-gray-50')}>👥 Usuarios Admin</button>
+                                <button onClick={() => setActiveTab('help')} className={"flex-1 px-6 py-4 font-medium transition-colors " + (activeTab === 'help' ? 'bg-teal-50 text-teal-600 border-b-2 border-teal-600' : 'text-gray-600 hover:bg-gray-50')}>📚 Guía BD</button>
+                            </div>
+
+                            <div className="p-6">
+                                {activeTab === 'pricing' && (
+                                    <div>
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                                            <div className="flex items-start gap-3">
+                                                <Icons.Info className="w-5 h-5 text-blue-600 mt-0.5" />
+                                                <div>
+                                                    <h3 className="font-bold text-blue-800 mb-1">📋 Información de Precios</h3>
+                                                    <p className="text-sm text-blue-700">Edita los precios y descuentos de cada tipo de producto. Los cambios se aplican inmediatamente.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <h3 className="text-lg font-bold mb-4">🏷️ Productos del Catálogo</h3>
+                                        <div className="space-y-4 mb-8">
+                                            {Object.entries(CONFIG_DATA.types).map(([key, config]) => {
+                                                const groupS = config.pricesBySizeGroup.S.base;
+                                                const groupML = config.pricesBySizeGroup.ML.base;
+                                                const groupXL = config.pricesBySizeGroup.XL.base;
+                                                
+                                                return (
+                                                    <div key={key} className="bg-gray-50 rounded-xl p-4 border">
+                                                        <div className="flex items-center justify-between mb-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-2xl">{config.emoji}</span>
+                                                                <div>
+                                                                    <h4 className="font-bold text-gray-800">{config.name}</h4>
+                                                                    <p className="text-xs text-gray-500">Tallas: {config.hasSizes.join(', ')}</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => startEdit(key)} className="text-teal-600 hover:text-teal-700 flex items-center gap-1 text-sm bg-white px-3 py-1 rounded-lg border">✏️ Editar precios</button>
+                                                        </div>
+                                                        
+                                                        {editingType === key ? (
+                                                            <div className="bg-white rounded-lg p-4 border">
+                                                                <h5 className="font-bold text-gray-700 mb-3">Editar precios - {config.name}</h5>
+                                                                <p className="text-xs text-amber-600 mb-3 bg-amber-50 p-2 rounded">💡 Código fuente: Modificar <code>CONFIG_DATA.types['{key}'].pricesBySizeGroup</code></p>
+                                                                
+                                                                <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                                                    <div>
+                                                                        <label className="text-xs text-gray-500 block mb-1">Talla S (Bs)</label>
+                                                                        <input type="number" value={priceForm.S} onChange={(e) => setPriceForm({...priceForm, S: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="text-xs text-gray-500 block mb-1">Tallas M, L (Bs)</label>
+                                                                        <input type="number" value={priceForm.ML} onChange={(e) => setPriceForm({...priceForm, ML: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="text-xs text-gray-500 block mb-1">Tallas XL, XXL (Bs)</label>
+                                                                        <input type="number" value={priceForm.XL} onChange={(e) => setPriceForm({...priceForm, XL: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="border-t pt-4 mt-4">
+                                                                    <h6 className="font-medium text-gray-700 mb-3">⚙️ Configuración de Descuento</h6>
+                                                                    <p className="text-xs text-gray-500 mb-3 bg-gray-100 p-2 rounded">💡 Código fuente: Modificar <code>CONFIG_DATA.types['{key}'].discount</code></p>
+                                                                    <div className="grid md:grid-cols-3 gap-4">
+                                                                        <div>
+                                                                            <label className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                                                                <input type="checkbox" checked={priceForm.discountEnabled} onChange={(e) => setPriceForm({...priceForm, discountEnabled: e.target.checked})} />
+                                                                                Descuento activado
+                                                                            </label>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-xs text-gray-500 block mb-1">Porcentaje (%)</label>
+                                                                            <input type="number" value={priceForm.discountPercentage} onChange={(e) => setPriceForm({...priceForm, discountPercentage: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" max="100" step="0.5" disabled={!priceForm.discountEnabled}/>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-xs text-gray-500 block mb-1">Mín. unidades</label>
+                                                                            <input type="number" value={priceForm.minQuantity} onChange={(e) => setPriceForm({...priceForm, minQuantity: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="1" disabled={!priceForm.discountEnabled}/>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="flex gap-2 mt-4">
+                                                                    <button onClick={() => savePrice(key)} disabled={saving} className="flex-1 bg-teal-600 text-white py-2 rounded text-sm hover:bg-teal-700">{saving ? 'Guardando...' : 'Guardar Cambios'}</button>
+                                                                    <button onClick={() => setEditingType(null)} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded text-sm hover:bg-gray-400">Cancelar</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="grid md:grid-cols-3 gap-4">
+                                                                <div className="bg-white rounded-lg p-3 text-center">
+                                                                    <p className="text-xs text-gray-500">Talla S</p>
+                                                                    <p className="font-bold text-gray-800">Bs {groupS.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-white rounded-lg p-3 text-center">
+                                                                    <p className="text-xs text-gray-500">Tallas M, L</p>
+                                                                    <p className="font-bold text-gray-800">Bs {groupML.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-white rounded-lg p-3 text-center">
+                                                                    <p className="text-xs text-gray-500">Tallas XL, XXL</p>
+                                                                    <p className="font-bold text-gray-800">Bs {groupXL.toFixed(2)}</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {config.discount.enabled && (
+                                                            <div className="mt-3 bg-teal-100 text-teal-800 text-xs font-medium px-3 py-1 rounded text-center inline-block">
+                                                                💰 {config.discount.description}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <h3 className="text-lg font-bold mb-4 mt-8">🎨 Poleras Personalizadas (Diseñador)</h3>
+                                        <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-2xl">👕</span>
+                                                    <div>
+                                                                        <h4 className="font-bold text-gray-800">Polera Personalizada</h4>
+                                                                        <p className="text-xs text-gray-500">Tallas: S, M, L, XL, XXL</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={startEditCustom} className="text-purple-600 hover:text-purple-700 flex items-center gap-1 text-sm bg-white px-3 py-1 rounded-lg border">✏️ Editar precios</button>
+                                            </div>
+                                            
+                                            {editingCustom ? (
+                                                <div className="bg-white rounded-lg p-4 border">
+                                                    <h5 className="font-bold text-gray-700 mb-3">Editar precios - Polera Personalizada</h5>
+                                                    <p className="text-xs text-amber-600 mb-3 bg-amber-50 p-2 rounded">💡 Código fuente: Modificar <code>CONFIG_DATA.customConfig.pricesBySizeGroup</code></p>
+                                                    
+                                                    <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Talla S (Bs)</label>
+                                                            <input type="number" value={customForm.S} onChange={(e) => setCustomForm({...customForm, S: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Tallas M, L (Bs)</label>
+                                                            <input type="number" value={customForm.ML} onChange={(e) => setCustomForm({...customForm, ML: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Tallas XL, XXL (Bs)</label>
+                                                            <input type="number" value={customForm.XL} onChange={(e) => setCustomForm({...customForm, XL: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" step="0.50"/>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="border-t pt-4 mt-4">
+                                                        <h6 className="font-medium text-gray-700 mb-3">⚙️ Configuración de Descuento (Personalizados)</h6>
+                                                        <p className="text-xs text-gray-500 mb-3 bg-gray-100 p-2 rounded">💡 Código fuente: Modificar <code>CONFIG_DATA.customConfig.discount</code></p>
+                                                        <div className="grid md:grid-cols-3 gap-4">
+                                                            <div>
+                                                                <label className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                                                    <input type="checkbox" checked={customForm.discountEnabled} onChange={(e) => setCustomForm({...customForm, discountEnabled: e.target.checked})} />
+                                                                    Descuento activado
+                                                                </label>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">Porcentaje (%)</label>
+                                                                <input type="number" value={customForm.discountPercentage} onChange={(e) => setCustomForm({...customForm, discountPercentage: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="0" max="100" step="0.5" disabled={!customForm.discountEnabled}/>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">Mín. unidades</label>
+                                                                <input type="number" value={customForm.minQuantity} onChange={(e) => setCustomForm({...customForm, minQuantity: e.target.value})} className="w-full px-3 py-2 border rounded text-sm" min="1" disabled={!customForm.discountEnabled}/>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex gap-2 mt-4">
+                                                        <button onClick={saveCustomPrice} disabled={saving} className="flex-1 bg-purple-600 text-white py-2 rounded text-sm hover:bg-purple-700">{saving ? 'Guardando...' : 'Guardar Cambios'}</button>
+                                                        <button onClick={() => setEditingCustom(false)} className="flex-1 bg-gray-300 text-gray-700 py-2 rounded text-sm hover:bg-gray-400">Cancelar</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid md:grid-cols-3 gap-4">
+                                                    <div className="bg-white rounded-lg p-3 text-center">
+                                                        <p className="text-xs text-gray-500">Talla S</p>
+                                                        <p className="font-bold text-gray-800">Bs {CONFIG_DATA.customConfig.pricesBySizeGroup.S.base.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="bg-white rounded-lg p-3 text-center">
+                                                        <p className="text-xs text-gray-500">Tallas M, L</p>
+                                                        <p className="font-bold text-gray-800">Bs {CONFIG_DATA.customConfig.pricesBySizeGroup.ML.base.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="bg-white rounded-lg p-3 text-center">
+                                                        <p className="text-xs text-gray-500">Tallas XL, XXL</p>
+                                                        <p className="font-bold text-gray-800">Bs {CONFIG_DATA.customConfig.pricesBySizeGroup.XL.base.toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {CONFIG_DATA.customConfig.discount.enabled && (
+                                                <div className="mt-3 bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded text-center inline-block">
+                                                    💰 {CONFIG_DATA.customConfig.discount.description}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'users' && (
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4">Usuarios Registrados</h3>
+                                        <div className="space-y-3">
+                                            {ADMIN_USERS.map((admin, index) => (
+                                                <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                                                    <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                                                        <Icons.User className="w-5 h-5 text-teal-600" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="font-medium text-gray-800">{admin.name}</p>
+                                                        <p className="text-sm text-gray-500">{admin.email}</p>
+                                                    </div>
+                                                    <span className="bg-teal-100 text-teal-800 text-xs font-medium px-3 py-1 rounded-full">{admin.role}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="mt-6 bg-gray-100 rounded-xl p-4">
+                                            <h4 className="font-bold text-gray-800 mb-2">📝 Agregar Nuevo Usuario</h4>
+                                            <p className="text-sm text-gray-600">Para agregar usuarios, edita el vector <code>ADMIN_USERS</code> en el código HTML.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'help' && (
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4">📚 Guía para Migración a Base de Datos</h3>
+                                        
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+                                            <h4 className="font-bold text-yellow-800 mb-2">⚠️ Preparación para BD</h4>
+                                            <p className="text-sm text-yellow-700">Esta configuración está diseñada para migrar fácilmente a una base de datos SQL.</p>
+                                        </div>
+
+                                        <div className="bg-gray-900 text-gray-100 rounded-xl p-4">
+                                            <h4 className="font-bold mb-2">📋 Esquema de Base de Datos</h4>
+                                            <pre className="text-xs overflow-x-auto">
+{`-- Tabla: product_types
+CREATE TABLE product_types (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    emoji VARCHAR(10),
+    has_sizes JSON,
+    discount_enabled BOOLEAN,
+    discount_percentage DECIMAL(5,2),
+    discount_min_quantity INT
+);
+
+-- Tabla: price_groups
+CREATE TABLE price_groups (
+    id VARCHAR(50) PRIMARY KEY,
+    type_id VARCHAR(50) REFERENCES product_types(id),
+    size_group VARCHAR(10),
+    base_price DECIMAL(10,2)
+);
+
+-- Tabla: custom_config
+CREATE TABLE custom_config (
+    id VARCHAR(50) PRIMARY KEY,
+    base_price DECIMAL(10,2),
+    discount_enabled BOOLEAN,
+    discount_percentage DECIMAL(5,2),
+    discount_min_quantity INT
+);`}
+                                            </pre>
+                                        </div>
+
+                                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+                                            <h4 className="font-bold text-green-800 mb-2">✅ Beneficios de Migrar</h4>
+                                            <ul className="text-sm text-green-700 space-y-1 list-disc list-inside">
+                                                <li>Cambios de precios en tiempo real</li>
+                                                <li>Múltiples administradores</li>
+                                                <li>Historial de cambios</li>
+                                                <li>API lista para integraciones</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Navbar = () => {
+            const { setIsCartOpen, totalItems } = useCart();
+            const { user, setShowLogin } = useAuth();
+            const navigate = useNavigate();
+            
+            return (
+                <nav className="bg-white border-b sticky top-0 z-50 px-6 h-16 flex items-center justify-between">
+                    <Link to="/" className="flex items-center gap-2">
+                        <Icons.Shirt className="text-teal-600 w-8 h-8" />
+                        <span className="font-bold text-xl tracking-tighter">MODA DTF</span>
+                    </Link>
+                    <div className="hidden md:flex gap-8 font-medium text-gray-600">
+                        <Link to="/" className="hover:text-teal-600">Catálogo</Link>
+                        <Link to="/disenador" className="hover:text-teal-600">Diseñador</Link>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {user ? (
+                            <button onClick={() => navigate('/admin')} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700">
+                                <Icons.Settings className="w-5 h-5" /><span className="hidden sm:inline">Admin</span>
+                            </button>
+                        ) : (
+                            <button onClick={() => setShowLogin(true)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-300">
+                                <Icons.Lock className="w-5 h-5" /><span className="hidden sm:inline">Admin</span>
+                            </button>
+                        )}
+                        <button onClick={() => setIsCartOpen(true)} className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 relative hover:bg-teal-700">
+                            <Icons.ShoppingBag className="w-5 h-5"/>
+                            {totalItems > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">{totalItems}</span>}
+                        </button>
+                    </div>
+                </nav>
+            );
+        };
+
+        const Designer = () => {
+            const { addToCart } = useCart();
+            const [config, setConfig] = useState({ type: 'Algodon', color: 'blanco', design: null, size: 'M' });
+            
+            const colors = [
+                { id: 'blanco', label: 'Blanco', hex: '#FFFFFF' },
+                { id: 'negro', label: 'Negro', hex: '#1a1a1a' },
+                { id: 'rojo', label: 'Rojo', hex: '#dc2626' },
+                { id: 'azul', label: 'Azul', hex: '#2563eb' },
+                { id: 'gris', label: 'Plomo', hex: '#b7b7b7' },
+                { id: 'verde', label: 'Verde', hex: '#00913f' },
+            ];
+
+            const handleAdd = () => {
+                const selectedDesignObj = DESIGNS_DB.find(d => d.img === config.design);
+                addToCart({
+                    name: 'Polera ' + config.type,
+                    price: 60,
+                    isCustom: true,
+                    details: { ...config, designName: selectedDesignObj ? selectedDesignObj.name : 'Sin Estampado' }
+                });
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto px-6 py-12 grid lg:grid-cols-2 gap-12">
+                    <div className="bg-gray-100 rounded-3xl p-8 flex items-center justify-center min-h-[500px] border shadow-inner">
+                        <ProductPreview type={config.type} color={config.color} design={config.design} containerClass="w-full h-full" />
+                    </div>
+
+                    <div className="space-y-8">
+                        <section>
+                            <h3 className="font-bold mb-4 text-xl">1. Tipo de Prenda</h3>
+                            <div className="flex gap-3">
+                                {Object.keys(IMAGES_DB).map(t => (
+                                    <button key={t} onClick={() => setConfig({...config, type: t})}
+                                        className={"px-4 py-2 rounded-lg border-2 " + (config.type === t ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-300')}>
+                                        {t}
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold mb-4 text-xl">2. Color de Tela</h3>
+                            <div className="flex gap-3">
+                                {colors.map(c => (
+                                    <button key={c.id} onClick={() => setConfig({...config, color: c.id})}
+                                        className={"w-10 h-10 rounded-full border-4 " + (config.color === c.id ? 'border-teal-500' : 'border-transparent')}
+                                        style={{backgroundColor: c.hex}} title={c.label} />
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold mb-4 text-xl">3. Talla</h3>
+                            <div className="flex gap-3">
+                                {['S', 'M', 'L', 'XL'].map(sz => (
+                                    <button key={sz} onClick={() => setConfig({...config, size: sz})}
+                                        className={"w-12 h-12 rounded-lg border-2 font-bold " + (config.size === sz ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-300')}>
+                                        {sz}
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="font-bold mb-4 text-xl">4. Estampado</h3>
+                            <div className="grid grid-cols-4 gap-4">
+                                {DESIGNS_DB.map(d => (
+                                    <button key={d.id} onClick={() => setConfig({...config, design: d.img})}
+                                        className={"aspect-square border-2 p-1 rounded-lg " + (config.design === d.img ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-300')}>
+                                        <img src={d.img} className="w-full h-full object-contain" alt={d.name} />
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        <button onClick={handleAdd} className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-teal-700 transition-colors">
+                            Agregar al Carrito (Bs 60)
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProductSelectionModal = ({ product, isOpen, onClose, onAdd }) => {
+            const [selectedColor, setSelectedColor] = useState(null);
+            const [selectedSize, setSelectedSize] = useState(null);
+            const [quantity, setQuantity] = useState(1);
+
+            useEffect(() => {
+                if (isOpen && product) {
+                    setSelectedColor(product.colors[0] || null);
+                    setSelectedSize(product.sizes[0] || null);
+                    setQuantity(1);
+                }
+            }, [isOpen, product]);
+
+            if (!isOpen || !product) return null;
+
+            const typeConfig = CONFIG_DATA.types[product.type];
+            const priceInfo = getPriceWithDiscount(product.type, selectedSize, quantity, false);
+            const total = priceInfo.discountedPrice * quantity;
+
+            const handleAdd = () => {
+                if (selectedColor && selectedSize) {
+                    onAdd(product, selectedColor, selectedSize, quantity);
+                    onClose();
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md animate-slide-in max-h-[90vh] overflow-y-auto">
+                        <div className="bg-teal-600 text-white p-6 rounded-t-2xl flex justify-between items-center">
+                            <h3 className="text-xl font-bold">Seleccionar Variante</h3>
+                            <button onClick={onClose}><Icons.X className="w-6 h-6"/></button>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                                <span className="text-4xl">{product.emoji}</span>
+                                <div>
+                                    <h4 className="font-bold">{product.name}</h4>
+                                    <p className="text-teal-600 font-bold">{typeConfig.name}</p>
+                                    <p className="text-xs text-gray-500">{product.code}</p>
+                                </div>
+                            </div>
+
+                            <div className="mb-4 bg-gray-50 rounded-xl p-3">
+                                <h5 className="text-xs font-bold text-gray-600 mb-2">Precios por Talla:</h5>
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div className="bg-white rounded p-2 text-center"><span className="text-gray-500">S:</span><span className="font-bold ml-1">Bs {typeConfig.pricesBySizeGroup.S.base.toFixed(2)}</span></div>
+                                    <div className="bg-white rounded p-2 text-center"><span className="text-gray-500">M, L:</span><span className="font-bold ml-1">Bs {typeConfig.pricesBySizeGroup.ML.base.toFixed(2)}</span></div>
+                                    <div className="bg-white rounded p-2 text-center"><span className="text-gray-500">XL, XXL:</span><span className="font-bold ml-1">Bs {typeConfig.pricesBySizeGroup.XL.base.toFixed(2)}</span></div>
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Color *</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {product.colors.map(c => (
+                                        <button key={c} onClick={() => setSelectedColor(c)}
+                                            className={"w-10 h-10 rounded-full border-3 flex items-center justify-center transition-all " + (selectedColor === c ? 'border-teal-500 scale-110' : 'border-gray-200')}
+                                            style={{background: COLOR_MAP[c] || c}} title={COLOR_NAMES[c] || c}>
+                                            {selectedColor === c && <span className="text-white text-xs">✓</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">Color: <strong>{COLOR_NAMES[selectedColor] || '-'}</strong></p>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Talla *</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {product.sizes.map(sz => {
+                                        const isSelected = selectedSize === sz;
+                                        const isXL = SIZE_GROUPS[sz] === 'XL';
+                                        return (
+                                            <button key={sz} onClick={() => setSelectedSize(sz)}
+                                                className={"w-12 h-12 rounded-lg border-2 font-bold transition-all flex flex-col items-center " + (isSelected ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:border-teal-300')}>
+                                                <span>{sz}</span>
+                                                {isXL && <span className="text-[8px] text-amber-600">+Bs</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">Talla: <strong>{selectedSize || '-'}</strong>{selectedSize && <span className="ml-2 text-teal-600">(Bs {getPriceByTypeAndSize(product.type, selectedSize).toFixed(2)})</span>}</p>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad</label>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 bg-gray-200 rounded-lg font-bold text-xl hover:bg-gray-300">-</button>
+                                    <span className="text-xl font-bold w-12 text-center">{quantity}</span>
+                                    <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 bg-gray-200 rounded-lg font-bold text-xl hover:bg-gray-300">+</button>
+                                </div>
+                            </div>
+
+                            {priceInfo.hasDiscount ? (
+                                <div className="bg-green-100 border border-green-200 rounded-xl p-4 mb-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Icons.Check className="w-5 h-5 text-green-600" />
+                                        <span className="font-bold text-green-800">¡Descuento Aplicado!</span>
+                                    </div>
+                                    <p className="text-sm text-green-700">Ahorras <strong>Bs {priceInfo.savings.toFixed(2)}</strong> ({priceInfo.discountPercentage}% OFF)</p>
+                                    <p className="text-xs text-green-600 mt-1">Precio: <s>Bs {priceInfo.basePrice.toFixed(2)}</s> → <strong>Bs {priceInfo.discountedPrice.toFixed(2)}</strong></p>
+                                </div>
+                            ) : quantity >= typeConfig.discount.minQuantity - 1 && typeConfig.discount.enabled ? (
+                                <div className="bg-amber-100 border border-amber-200 rounded-xl p-4 mb-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Icons.AlertTriangle className="w-5 h-5 text-amber-600" />
+                                        <span className="font-bold text-amber-800">¡casi!</span>
+                                    </div>
+                                    <p className="text-sm text-amber-700">Agrega <strong>{typeConfig.discount.minQuantity - quantity}</strong> más para {typeConfig.discount.percentage}% OFF</p>
+                                </div>
+                            ) : null}
+
+                            <div className="bg-gradient-to-r from-teal-600 to-teal-700 p-4 rounded-xl mb-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-white">Total:</span>
+                                    <span className="text-2xl font-bold text-white">Bs {total.toFixed(2)}</span>
+                                </div>
+                                {priceInfo.hasDiscount && <div className="text-teal-200 text-xs mt-1 text-right">(Ahorro: Bs {priceInfo.savings.toFixed(2)})</div>}
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                                <div className="flex items-start gap-2">
+                                    <span className="text-xl">💡</span>
+                                    <div className="text-sm text-amber-800">
+                                        <p className="font-medium">Descuento por volumen</p>
+                                        <p className="text-xs mt-1">{typeConfig.discount.percentage}% OFF desde {typeConfig.discount.minQuantity} unidades del mismo tipo.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t flex gap-3">
+                            <button onClick={onClose} className="flex-1 px-4 py-3 bg-gray-100 rounded-lg font-medium hover:bg-gray-200">Cancelar</button>
+                            <button onClick={handleAdd} disabled={!selectedColor || !selectedSize} className="flex-1 px-4 py-3 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 disabled:opacity-50">Agregar al Carrito</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Catalog = () => {
+            const { addToCatalogCart } = useCart();
+            const [filter, setFilter] = useState('all');
+            const [selectionModal, setSelectionModal] = useState({ isOpen: false, product: null });
+            const filteredProducts = CATALOG_PRODUCTS.filter(p => filter === 'all' || p.type === filter);
+
+            return (
+                <div className="max-w-7xl mx-auto px-6 py-12">
+                    <div className="text-center mb-12">
+                        <h1 className="text-4xl font-bold text-gray-900 mb-4">Catálogo de Productos</h1>
+                        <div className="mt-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-3 rounded-full inline-flex items-center gap-2">
+                            <span>💰</span>
+                            <span className="font-medium">¡Descuentos por volumen! 3+ prendas = precio especial</span>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            {['all', 'blusa', 'saco', 'polera', 'solera'].map(t => (
+                                <button key={t} onClick={() => setFilter(t)}
+                                    className={"px-5 py-2 rounded-full font-medium transition-colors " + (filter === t ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-teal-50')}>
+                                    {t === 'all' ? 'Todos' : (t.charAt(0).toUpperCase() + t.slice(1) + 's')}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {filteredProducts.map(product => {
+                            const config = CONFIG_DATA.types[product.type];
+                            const minPrice = Math.min(config.pricesBySizeGroup.S.base, config.pricesBySizeGroup.ML.base, config.pricesBySizeGroup.XL.base);
+                            const maxPrice = Math.max(config.pricesBySizeGroup.S.base, config.pricesBySizeGroup.ML.base, config.pricesBySizeGroup.XL.base);
+                            
+                            return (
+                                <div key={product.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                                    <div className="bg-gray-100 p-8 relative h-56 flex items-center justify-center">
+                                        <span className="text-7xl">{product.emoji}</span>
+                                        {product.badge && <span className="absolute top-3 left-3 bg-teal-600 text-white text-xs px-3 py-1 rounded-full font-bold">{product.badge}</span>}
+                                        {config.discount.enabled && <div className="absolute top-3 right-3 bg-amber-500 text-white text-xs px-3 py-1 rounded-full font-bold">{config.discount.percentage}% OFF</div>}
+                                    </div>
+                                    <div className="p-6">
+                                        <div className="text-teal-600 text-xs font-bold uppercase tracking-wide mb-1">{product.type}</div>
+                                        <h3 className="font-bold text-xl text-gray-900 mb-2">{product.name}</h3>
+                                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
+                                        <div className="flex gap-2 mb-4">
+                                            {product.colors.map(c => (
+                                                <div key={c} className="w-6 h-6 rounded-full border-2 border-gray-200" style={{background: COLOR_MAP[c] || c}} title={COLOR_NAMES[c] || c} />
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center justify-between pt-4 border-t">
+                                            <div>
+                                                <span className="text-xl font-bold text-teal-600">Bs {minPrice.toFixed(2)} - {maxPrice.toFixed(2)}</span>
+                                                <div className="text-xs text-amber-600 font-medium">S={config.pricesBySizeGroup.S.base} | M,L={config.pricesBySizeGroup.ML.base} | XL={config.pricesBySizeGroup.XL.base}</div>
+                                                {config.discount.enabled && <div className="text-xs text-teal-600">{config.discount.percentage}% OFF desde {config.discount.minQuantity} uni.</div>}
+                                            </div>
+                                            <button onClick={() => setSelectionModal({ isOpen: true, product })} className="bg-teal-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-teal-700">Agregar 🛒</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <ProductSelectionModal product={selectionModal.product} isOpen={selectionModal.isOpen} onClose={() => setSelectionModal({ isOpen: false, product: null })} onAdd={(p, c, s, q) => addToCatalogCart(p, c, s, q)} />
+                </div>
+            );
+        };
+
+        const CartDrawer = () => {
+            const { isCartOpen, setIsCartOpen, cart, catalogCart, removeFromCart, removeFromCatalogCart, updateCatalogQty, updateCustomQty, catalogTotal, customTotal } = useCart();
+            
+            if (!isCartOpen) return null;
+
+            const finalTotal = customTotal + catalogTotal;
+            const allItems = [];
+            cart.forEach(item => { allItems.push({...item, source: 'custom'}); });
+            catalogCart.forEach(item => { allItems.push({...item, source: 'catalog'}); });
+
+            const handleWhatsAppCheckout = () => {
+                if (allItems.length === 0) return;
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFillColor(13, 148, 136);
+                doc.rect(0, 0, 220, 40, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(22);
+                doc.text('MODA DTF - ORDEN DE PEDIDO', 105, 18, { align: 'center' });
+                doc.setFontSize(10);
+                doc.text('Fecha: ' + new Date().toLocaleString(), 20, 32);
+                doc.line(20, 35, 190, 35);
+                let y = 50;
+                doc.setFontSize(14);
+                doc.text('Resumen del Carrito:', 20, y);
+                y += 10;
+                allItems.forEach((item, index) => {
+                    const itemType = item.type || 'polera';
+                    const isCustom = item.source === 'custom';
+                    const size = isCustom ? item.details.size : item.selectedSize;
+                    const discountInfo = getPriceWithDiscount(itemType, size, item.quantity || 1, isCustom);
+                    const subtotal = discountInfo.discountedPrice * (item.quantity || 1);
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text((index + 1) + '. ' + (isCustom ? 'Polera Personalizada' : item.name), 20, y);
+                    y += 6;
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('Color: ' + (isCustom ? item.details.color : COLOR_NAMES[item.selectedColor]) + ' | Talla: ' + size, 25, y);
+                    y += 5;
+                    doc.text('Cantidad: ' + (item.quantity || 1) + ' x Bs ' + discountInfo.discountedPrice.toFixed(2) + ' = Bs ' + subtotal.toFixed(2), 160, y, { align: 'right' });
+                    y += 12;
+                    if (y > 270) { doc.addPage(); y = 20; }
+                });
+                y += 5;
+                doc.setLineWidth(0.5);
+                doc.line(20, y, 190, y);
+                y += 15;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(13, 148, 136);
+                doc.text('TOTAL A PAGAR: Bs ' + finalTotal.toFixed(2), 190, y, { align: 'right' });
+                doc.save('Pedido_ModaDTF_' + Date.now() + '.pdf');
+                let message = '*Hola Moda DTF!* He generado un nuevo pedido:\n\n';
+                allItems.forEach((item, idx) => {
+                    const itemType = item.type || 'polera';
+                    const isCustom = item.source === 'custom';
+                    const size = isCustom ? item.details.size : item.selectedSize;
+                    const discountInfo = getPriceWithDiscount(itemType, size, item.quantity || 1, isCustom);
+                    const subtotal = discountInfo.discountedPrice * (item.quantity || 1);
+                    message += (idx + 1) + '. ' + (isCustom ? 'Polera Personalizada' : item.name) + '\n';
+                    message += '   - Cantidad: ' + (item.quantity || 1) + ' x Bs ' + discountInfo.discountedPrice.toFixed(2) + ' = Bs ' + subtotal.toFixed(2) + '\n\n';
+                });
+                message += 'TOTAL: Bs ' + finalTotal.toFixed(2);
+                message = encodeURIComponent(message);
+                setTimeout(() => { window.open('https://wa.me/59176319999?text=' + message, '_blank'); }, 1500);
+            };
+
+            return (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+                    <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in">
+                        <div className="p-4 border-b flex justify-between items-center bg-teal-600 text-white">
+                            <h2 className="font-bold text-xl">Tu Carrito</h2>
+                            <button onClick={() => setIsCartOpen(false)}><Icons.X className="w-6 h-6"/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {allItems.length === 0 ? (
+                                <div className="text-center py-20 text-gray-500">
+                                    <div className="text-6xl mb-4">🛒</div>
+                                    <p>Tu carrito está vacío</p>
+                                </div>
+                            ) : (
+                                allItems.map((item, idx) => {
+                                    const itemType = item.type || 'polera';
+                                    const isCustom = item.source === 'custom';
+                                    const size = isCustom ? item.details.size : item.selectedSize;
+                                    const discountInfo = getPriceWithDiscount(itemType, size, item.quantity || 1, isCustom);
+                                    const subtotal = discountInfo.discountedPrice * (item.quantity || 1);
+
+                                    return (
+                                        <div key={item.cartItemId || idx} className={"flex gap-4 p-3 border rounded-xl items-center " + (isCustom ? 'bg-purple-50' : 'bg-gray-50')}>
+                                            <div className="w-16 h-20 bg-white rounded border overflow-hidden flex items-center justify-center">
+                                                {isCustom ? (
+                                                    <ProductPreview type={item.details.type} color={item.details.color} design={item.details.design} logoSize="w-8 h-8" />
+                                                ) : (
+                                                    <span className="text-4xl">{item.emoji}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={"text-xs px-2 py-0.5 rounded " + (isCustom ? 'bg-purple-600 text-white' : 'bg-teal-600 text-white')}>{isCustom ? 'PERSONALIZADO' : 'CATÁLOGO'}</span>
+                                                    {discountInfo.hasDiscount && (
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1">
+                                                            <Icons.Check className="w-3 h-3" /> -{discountInfo.discountPercentage}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h4 className="font-bold text-sm leading-tight mt-1">{isCustom ? 'Polera Personalizada' : item.name}</h4>
+                                                <div className="text-[10px] text-gray-500 space-y-0.5 mt-1">
+                                                    <p>Color: <strong>{isCustom ? item.details.color : COLOR_NAMES[item.selectedColor]}</strong> | Talla: <strong>{size}</strong></p>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <button onClick={() => isCustom ? updateCustomQty(item.cartItemId, Math.max(1, (item.quantity || 1) - 1)) : updateCatalogQty(item.cartItemId, -1)} className="w-6 h-6 bg-gray-200 rounded-full text-xs font-bold">-</button>
+                                                    <span className="text-sm font-bold">{item.quantity || 1}</span>
+                                                    <button onClick={() => isCustom ? updateCustomQty(item.cartItemId, (item.quantity || 1) + 1) : updateCatalogQty(item.cartItemId, 1)} className="w-6 h-6 bg-gray-200 rounded-full text-xs font-bold">+</button>
+                                                </div>
+                                                <p className={"font-bold mt-1 " + (isCustom ? 'text-purple-600' : 'text-teal-600')}>
+                                                    x{item.quantity || 1} = Bs {subtotal.toFixed(2)}
+                                                    {discountInfo.hasDiscount && <span className="text-xs text-green-500 ml-1">✓</span>}
+                                                </p>
+                                                {discountInfo.hasDiscount && (
+                                                    <p className="text-xs text-green-600">Ahorras Bs {(discountInfo.basePrice - discountInfo.discountedPrice).toFixed(2)} por unidad</p>
+                                                )}
+                                            </div>
+                                            <button onClick={() => isCustom ? removeFromCart(item.cartItemId) : removeFromCatalogCart(item.cartItemId)} className="text-red-400 p-2 hover:bg-red-50 rounded-lg"><Icons.Trash2 className="w-5 h-5"/></button>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        <div className="p-6 border-t bg-white">
+                            <div className="flex justify-between font-bold text-xl mb-4">
+                                <span>Total</span>
+                                <span className="text-teal-600">Bs {finalTotal.toFixed(2)}</span>
+                            </div>
+                            <button onClick={handleWhatsAppCheckout} disabled={allItems.length === 0} className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-teal-700 disabled:opacity-50">
+                                <Icons.Phone className="w-5 h-5"/> Pedir por WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => (
+            <HashRouter>
+                <AuthProvider>
+                    <CartProvider>
+                        <div className="min-h-screen flex flex-col">
+                            <Navbar />
+                            <Routes>
+                                <Route path="/" element={<Catalog />} />
+                                <Route path="/disenador" element={<Designer />} />
+                                <Route path="/admin" element={<AdminPanel />} />
+                            </Routes>
+                            <CartDrawer />
+                            <AdminLoginModal />
+                        </div>
+                    </CartProvider>
+                </AuthProvider>
+            </HashRouter>
+        );
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
